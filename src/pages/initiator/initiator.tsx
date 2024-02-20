@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react"
 import SimplePeer from "simple-peer"
 
+export const bufferChunkSize = 16 * 1024
+export const bufferStartMark = "#file-start"
+export const bufferEndMark = "#file-complete"
+
 export default function Initiator() {
   const [peer, setPeer] = useState<SimplePeer.Instance>()
   const [signals, setSignals] = useState<object[]>([])
   const [answer, setAnswer] = useState("")
   const [messages, setMessages] = useState<string[]>([])
-  const [composedMessage, setComposedMessage] = useState("")
 
   useEffect(() => {
     if (!peer) {
@@ -17,9 +20,13 @@ export default function Initiator() {
         setSignals((prev) => [...prev, e])
       })
 
+      newPeer.on("error", (err) => {
+        console.log("### ERROR", { err })
+      })
+
       newPeer.on("connect", () => {
         console.log("## CONNECTED")
-        newPeer.send("Connected")
+        // newPeer.send("Connected")
       })
 
       newPeer.on("data", (data: Uint8Array) => {
@@ -49,21 +56,27 @@ export default function Initiator() {
           </ul>
           <div>
             <input
-              type="text"
-              name="message"
-              id="message"
+              type="file"
+              name="file"
+              id="file"
               onChange={(e) => {
-                setComposedMessage(e.target.value)
+                console.log({ e })
+                const file = e.target.files?.[0]
+                if (file) {
+                  console.log({ file })
+                  peer.send(bufferStartMark)
+                  file.arrayBuffer().then((buffer) => {
+                    while (buffer.byteLength) {
+                      const chunk = buffer.slice(0, bufferChunkSize)
+                      peer.send(chunk)
+                      buffer = buffer.slice(bufferChunkSize, buffer.byteLength)
+                    }
+
+                    peer.send(bufferEndMark)
+                  })
+                }
               }}
             />
-            <button
-              onClick={() => {
-                peer.send(composedMessage)
-                setComposedMessage("")
-              }}
-            >
-              Send Answer
-            </button>
           </div>
         </div>
       ) : (

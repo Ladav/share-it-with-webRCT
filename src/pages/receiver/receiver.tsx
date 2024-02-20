@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react"
 import SimplePeer from "simple-peer"
+import { downloadFile } from "../../utils/download.utils"
+import { bufferEndMark, bufferStartMark } from "../initiator"
+
+let bufferChunks: Uint8Array[] = []
 
 export default function Receiver() {
   const [peer, setPeer] = useState<SimplePeer.Instance>()
   const [signals, setSignals] = useState<object[]>([])
   const [offer, setOffer] = useState("")
-  const [messages, setMessages] = useState<string[]>([])
   const [composedMessage, setComposedMessage] = useState("")
 
   useEffect(() => {
@@ -17,23 +20,23 @@ export default function Receiver() {
         setSignals((prev) => [...prev, e])
       })
 
-      newPeer.on("connect", () => {
-        newPeer.send("Connected")
+      newPeer.on("error", (err) => {
+        console.log("### ERROR", { err })
       })
 
-      newPeer.on("data", (data: string) => {
-        console.log(typeof data)
-        // got a data channel message
-        console.log("got a message from peer1: " + data)
+      newPeer.on("connect", () => {
+        console.log("## CONNECTED")
+        newPeer.send("connected")
       })
 
       newPeer.on("data", (data: Uint8Array) => {
-        // Convert the Uint8Array to a Buffer
-        const buffer = Buffer.from(data)
-        // Convert the Buffer to text using toString() method
-        const text = buffer.toString("utf-8")
-        console.log({ data })
-        setMessages((prev) => [...prev, text])
+        if (data.toString() === bufferStartMark) {
+          bufferChunks = []
+        } else if (data.toString() === bufferEndMark) {
+          downloadFile(bufferChunks, "test-images.jpeg", "image/jpeg")
+        } else {
+          bufferChunks.push(data)
+        }
       })
 
       setPeer(newPeer)
@@ -46,11 +49,6 @@ export default function Receiver() {
       {peer?.connected ? (
         <div>
           <h2>Messsages</h2>
-          <ul>
-            {messages.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
           <div>
             <input
               type="text"
