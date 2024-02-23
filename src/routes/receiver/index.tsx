@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react"
-import SimplePeer from "simple-peer"
+import SimplePeer, { SignalData } from "simple-peer"
 import { downloadFile } from "../../utils/download.utils"
 import { bufferEndMark, bufferStartMark } from "../initiator"
+import { createFileRoute } from "@tanstack/react-router"
 
 let bufferChunks: Uint8Array[] = []
 
-export default function Receiver() {
+function Receiver() {
+  const { offer } = Route.useSearch()
   const [peer, setPeer] = useState<SimplePeer.Instance>()
   const [signals, setSignals] = useState<object[]>([])
-  const [offer, setOffer] = useState("")
   const [composedMessage, setComposedMessage] = useState("")
+  const [connected, setConnected] = useState(Boolean(peer?.connected))
 
   useEffect(() => {
     if (!peer) {
@@ -27,6 +29,7 @@ export default function Receiver() {
       newPeer.on("connect", () => {
         console.log("## CONNECTED")
         newPeer.send("connected")
+        setConnected(true)
       })
 
       newPeer.on("data", (data: Uint8Array) => {
@@ -43,10 +46,16 @@ export default function Receiver() {
     }
   }, [signals, peer])
 
+  useEffect(() => {
+    if (offer) {
+      peer?.signal(offer)
+    }
+  }, [offer, peer])
+
   return (
     <div>
       <h1>Receiver Page</h1>
-      {peer?.connected ? (
+      {connected ? (
         <div>
           <h2>Messsages</h2>
           <div>
@@ -60,7 +69,7 @@ export default function Receiver() {
             />
             <button
               onClick={() => {
-                peer.send(composedMessage)
+                peer?.send(composedMessage)
                 setComposedMessage("")
               }}
             >
@@ -70,23 +79,7 @@ export default function Receiver() {
         </div>
       ) : (
         <>
-          <div>
-            <input
-              type="text"
-              name="offer"
-              id="offer"
-              onChange={(e) => {
-                setOffer(e.target.value)
-              }}
-            />
-            <button
-              onClick={() => {
-                peer?.signal(offer)
-              }}
-            >
-              Accept Offer
-            </button>
-          </div>
+          <p>{JSON.stringify(offer, null, 2)}</p>
           <div>
             <h2>Signals</h2>
             <ul>
@@ -100,3 +93,12 @@ export default function Receiver() {
     </div>
   )
 }
+
+export const Route = createFileRoute("/receiver/")({
+  component: Receiver,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      offer: search.connectionURI ? (JSON.parse(atob(String(search.connectionURI))) as SignalData) : undefined,
+    }
+  },
+})

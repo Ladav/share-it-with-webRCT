@@ -10,12 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-router": "^1.16.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "simple-peer": "^9.11.1",
     "vite-plugin-node-polyfills": "^0.21.0"
   },
   "devDependencies": {
+    "@tanstack/router-vite-plugin": "^1.16.5",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@types/simple-peer": "^9.11.8",

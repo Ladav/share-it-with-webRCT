@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react"
+import { createFileRoute } from "@tanstack/react-router"
+import { useEffect, useMemo, useState } from "react"
 import SimplePeer from "simple-peer"
 
 export const bufferChunkSize = 16 * 1024
 export const bufferStartMark = "#file-start"
 export const bufferEndMark = "#file-complete"
 
-export default function Initiator() {
+function Initiator() {
   const [peer, setPeer] = useState<SimplePeer.Instance>()
   const [signals, setSignals] = useState<object[]>([])
   const [answer, setAnswer] = useState("")
   const [messages, setMessages] = useState<string[]>([])
+  const [connectionURI, setConnectionURI] = useState<string>("")
 
   useEffect(() => {
     if (!peer) {
@@ -41,12 +43,9 @@ export default function Initiator() {
     }
   }, [signals, peer])
 
-  console.log({ peer, connected: peer?.connected })
-
-  return (
-    <div>
-      <h1>Initiator Page</h1>
-      {peer?.connected ? (
+  const content = useMemo(() => {
+    if (peer?.connected) {
+      return (
         <div>
           <h2>Messsages</h2>
           <ul>
@@ -79,35 +78,62 @@ export default function Initiator() {
             />
           </div>
         </div>
-      ) : (
-        <>
-          <div>
-            <input
-              type="text"
-              name="answer"
-              id="answer"
-              onChange={(e) => {
-                setAnswer(e.target.value)
-              }}
-            />
-            <button
-              onClick={() => {
+      )
+    }
+
+    if (connectionURI) {
+      return (
+        <div>
+          <input
+            type="text"
+            name="answer"
+            id="answer"
+            onChange={(e) => {
+              setAnswer(e.target.value)
+            }}
+          />
+          <button
+            onClick={() => {
+              if (answer) {
                 peer?.signal(answer)
-              }}
-            >
-              Send Answer
-            </button>
-          </div>
-          <div>
-            <h2>Signals</h2>
-            <ul>
-              {signals.map((item) => (
-                <li key={JSON.stringify(item)}>{JSON.stringify(item, null, 2)}</li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
+              }
+            }}
+          >
+            Connect
+          </button>
+          <p style={{ overflow: "hidden", wordWrap: "break-word" }}>{connectionURI}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        <h3>Generate and share the connection URI with other party</h3>
+        <button
+          onClick={() => {
+            if (signals.length > 0) {
+              const sdp = signals[signals.length - 1]
+              const uri = `${location.origin}/receiver?connectionURI=${btoa(JSON.stringify(sdp))}`
+              setConnectionURI(uri)
+            }
+          }}
+        >
+          Generate
+        </button>
+      </div>
+    )
+  }, [answer, connectionURI, messages, peer, signals])
+
+  console.log({ peer, connected: peer?.connected })
+
+  return (
+    <div>
+      <h1>Initiator Page</h1>
+      {content}
     </div>
   )
 }
+
+export const Route = createFileRoute("/initiator/")({
+  component: Initiator,
+})
